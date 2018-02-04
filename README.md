@@ -9,4 +9,4 @@ The surfaces are symmetric with respect to the axes.
 
 You will be asked to input values of n1-n6, as well as ratios of the probabilities of the three surfaces (p1,p2,p3).
 
-The program can easily diverge due to random initialization.
+The program may diverge due to random initialization.
