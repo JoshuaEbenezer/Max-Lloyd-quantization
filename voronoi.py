@@ -4,13 +4,14 @@ from scipy.spatial import Voronoi, voronoi_plot_2d
 import matplotlib.pyplot as plt
 from scipy.spatial import cKDTree
 import time
+from numpy import linalg as LA
 
 def find_prob(coordinates,test_points,probabilities):	# to find the prob. dens. fn. of the space
 	prob_points = []
 	for index,[x,y] in enumerate(test_points):
-		if (x<coordinates[2]):
+		if (x<coordinates[2] and x>-coordinates[2] and y<coordinates[1] and y>-coordinates[1]):
 			prob_points.append(probabilities[0])
-		elif (x<coordinates[3]):
+		elif (x<coordinates[3] and x>-coordinates[3] and y<coordinates[0] and y>-coordinates[0]):
 			prob_points.append(probabilities[1])
 		else:
 			prob_points.append(probabilities[2])	
@@ -42,8 +43,8 @@ for i in range(6):
 	coordinates.append(int(n))
 print('Numbers :',coordinates)
 
-ratio1 = float(input('Enter the ratio of p1 and p2 '))
-ratio2 = float(input('Enter the ratio of p1 and p3 '))
+ratio1 = float(input('Enter the ratio of p2 and p1 '))
+ratio2 = float(input('Enter the ratio of p3 and p1 '))
 probabilities = pdf_finder(coordinates,ratio1,ratio2)
 
 print('Probability density functions on the surfaces are ',probabilities)
@@ -58,31 +59,39 @@ print('Initial randomly generated estimates of a in format [ax,ay] :', estimate)
 test_points = generate_points(coordinates)
 prob_point = find_prob(coordinates,test_points,probabilities)
 
-for i in range(10):
-
+for i in range(20):
+	print('Iteration ', i)
 	# construct Voronoi regions from estimates of centroids
 	voronoi_kdtree = cKDTree(estimate)
 	test_point_dist, test_point_regions = voronoi_kdtree.query(test_points, k=1)
 
 	# test_point_regions now holds an array of shape (n_test, 1)
 	# with the indices of the points in voronoi_points closest to each of your test_points.
-			
-	prob_max = np.zeros(region_number)
+	test_point_regions = np.asarray([x for x in test_point_regions])
+	expectation = np.zeros((region_number,2))
 	new_estimate = np.zeros((region_number,2))
 
-	for region_index in range(region_number):
-		point_indices = np.where(test_point_regions==region_index)
-		for point_index in point_indices:
-			current_prob = prob_point[point_index[0]][0]
-			if (prob_max[region_index]<current_prob):
-				prob_max[region_index] = current_prob
-				new_estimate[region_index] = test_points[point_index[0]]
-	
+	for region_index in range(region_number):		# go through each region
+		denominator = 0
+		point_indices = np.where(test_point_regions==region_index)	# find the points corresponding to that region
+		for point_index in point_indices[0]:	# loop over those points
+			current_index = int(point_index)						# find the index of the point you are at
+			current_prob = prob_point[current_index][0]				# find the corresponding probability p(x|Ri)=p(x,Ri)/p(Ri)
+			denominator += current_prob
+			increment = np.asarray([x * current_prob for x in test_points[current_index]])	# find the product x*p(x|Ri)
+			expectation[region_index] = expectation[region_index] + increment	# update expectation
+		expectation[region_index] = expectation[region_index]/denominator
+		new_estimate[region_index] = np.around(expectation[region_index],decimals=2) 			#find closest point to expectation
+		print('New estimate for region', region_index,' is : ',new_estimate[region_index] )
+
 	error = np.sum(np.square(new_estimate-estimate))
 	vor = Voronoi(estimate)
 	voronoi_plot_2d(vor)
 	
 	plt.show(block=False)
 	plt.pause(3)
+	if (abs(error)<0.02):
+		print('Algorithm has converged! Woo-hoo!')
+		break
 	plt.close()
 	estimate = new_estimate
